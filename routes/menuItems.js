@@ -40,6 +40,9 @@ router.get('/', getAllMenuItems);
  *                 type: string
  *               description:
  *                 type: string
+ *               protein:
+ *                  type: number
+ *                  example: 10.00
  *               webPrice:
  *                 type: number
  *               uberPrice:

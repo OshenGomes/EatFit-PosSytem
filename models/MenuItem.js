@@ -27,7 +27,7 @@ const MenuItemSchema = new mongoose.Schema({
     _id: { type: Number },
     name: { type: String, required: true },
     mainCategory: { type: String, required: true },
-    menuCategory: { type: String, required: true },
+    menuCategory: { type: String, required: false },
     description: { type: String },
     webPrice: { type: Number, required: true },
     uberPrice: { type: Number, required: true },
