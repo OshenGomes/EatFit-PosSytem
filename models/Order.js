@@ -27,6 +27,7 @@ const OrderSchema = new mongoose.Schema({
     totalPrice: { type: Number, required: true },
     orderTime: { type: Number, required: false },
     paymentMethod: { type: String, required: false },
+    bankTransferReference: { type: String, required: false },
     orderDate: { type: Date, default: Date.now }
 });
 

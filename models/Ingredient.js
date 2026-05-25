@@ -8,13 +8,23 @@ const IngredientSchema = new mongoose.Schema({
     description: { type: String },
     availableQuantity: { type: Number, default: 0 },
     lowStockThreshold: { type: Number, default: 0 },
-    updatedUser: { type: String , required: true},
+    updatedUser: { type: String, required: true },
     updatedDate: { type: Date, default: Date.now }
 }, { _id: false });
 
+// Auto-generate _id if new
+IngredientSchema.pre('save', async function (next) {
+    if (this.isNew) {
+        this._id = await getNextSequence('ingredientId');
+    }
+    next();
+});
 
-IngredientSchema.pre('save', async function(next) {
-    if (this.isNew) this._id = await getNextSequence('ingredientId');
+// Prevent saving ingredient with negative availableQuantity
+IngredientSchema.pre('validate', function (next) {
+    if (this.availableQuantity < 0) {
+        return next(new Error(`availableQuantity cannot be negative for ingredient: ${this.name}`));
+    }
     next();
 });
 

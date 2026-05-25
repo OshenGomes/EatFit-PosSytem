@@ -49,6 +49,10 @@ const {
  *               paymentMethod:
  *                 type: string
  *                 example: Cash
+ *               bankTransferReference:
+ *                 type: string
+ *                 example: TXN123456789
+ *                 description: Required if paymentMethod is "online bank transfer"
  *               items:
  *                 type: array
  *                 items:

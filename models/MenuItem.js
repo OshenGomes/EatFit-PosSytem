@@ -26,13 +26,13 @@ const NutritionalSchema = new mongoose.Schema({
 const MenuItemSchema = new mongoose.Schema({
     _id: { type: Number },
     name: { type: String, required: true },
-    mainCategory: { type: String, required: true },
-    menuCategory: { type: String, required: true },
+    mainCategory: { type: String, required: false },
+    menuCategory: { type: String, required: false },
     description: { type: String },
     webPrice: { type: Number, required: true },
     uberPrice: { type: Number, required: true },
     halal: { type: Boolean, required: false },
-    imageurl:{ type: String, required: true },
+    imageurl:{ type: String, required: false },
     ingredients: { type: [MenuItemIngredientSchema], default: [] },
     addons: { type: [AddonSchema], default: [] },
     nutrition : { type: [NutritionalSchema], default: [] }

@@ -1,42 +1,44 @@
 const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 const Ingredient = require('../models/Ingredient');
-const Counter = require('../models/Counter'); // ✅ Add this line
+const Counter = require('../models/Counter');
 
-async function getNextOrderId(platform) {
-    const key = platform === 'UBER' ? 'uberOrderId' : 'pickmeOrderId';
-    const prefix = platform === 'UBER' ? 'UB' : 'PM';
-
+async function getNextOrderId() {
     const counter = await Counter.findByIdAndUpdate(
-        key,
+        'autoOrderId',
         { $inc: { seq: 1 } },
         { new: true, upsert: true }
     );
-
     const number = counter.seq.toString().padStart(3, '0');
-    return `${prefix}-${number}`;
+    return `OD-${number}`;
 }
 
 exports.placeOrder = async (req, res) => {
-    const { customerName, customerPhone, orderType, orderStatus, totalPrice, items, orderId: clientOrderId } = req.body;
+    const { orderId, customerName, customerPhone, customerAddress, orderType, orderStatus, totalPrice, items, paymentMethod, bankTransferReference } = req.body;
 
     if (!Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: 'Order must have at least one item' });
     }
 
+    if (paymentMethod === 'online bank transfer' && !bankTransferReference) {
+        return res.status(400).json({ error: 'Bank transfer reference is required for online bank transfer payment method' });
+    }
+
     try {
-        // 🔽 Determine orderId based on orderType
-        let orderId;
-        if (orderType === 'Uber Delivery') {
-            orderId = await getNextOrderId('UBER');
-        } else if (orderType === 'Pick Me Delivery' || orderType === 'Pick Me Pickup') {
-            orderId = await getNextOrderId('PICKME');
-        } else if (!clientOrderId) {
-            return res.status(400).json({ error: 'orderId is required for non-Uber/PickMe orders' });
+        // Validate or generate orderId
+        const specialTypes = ["Uber Delivery", "Pick Me Delivery", "Pick Me Pickup"];
+        let finalOrderId;
+
+        if (specialTypes.includes(orderType)) {
+            if (!orderId) {
+                return res.status(400).json({ error: 'orderId is required for Uber or Pick Me orders' });
+            }
+            finalOrderId = orderId;
         } else {
-            orderId = clientOrderId;
+            finalOrderId = await getNextOrderId();
         }
 
+        // Check and deduct stock
         for (const orderItem of items) {
             const menuItem = await MenuItem.findById(orderItem.menuItemId);
             if (!menuItem) {
@@ -45,35 +47,70 @@ exports.placeOrder = async (req, res) => {
 
             // Deduct base ingredients
             for (const mi of menuItem.ingredients) {
-                const qty = mi.quantityNeeded * orderItem.quantity;
-                await Ingredient.findByIdAndUpdate(mi.ingredientId, { $inc: { availableQuantity: -qty } });
+              const qty = mi.quantityNeeded * orderItem.quantity;
+
+              const ingredient = await Ingredient.findById(mi.ingredientId);
+              if (!ingredient) {
+                return res
+                  .status(404)
+                  .json({ error: `Ingredient ${mi.ingredientId} not found` });
+              }
+
+              // Removed insufficient stock check to allow orders to proceed regardless of stock levels
+
+              await Ingredient.findByIdAndUpdate(mi.ingredientId, {
+                $inc: { availableQuantity: -qty },
+                $set: { updatedDate: new Date() },
+              });
             }
 
-            // Deduct addon ingredients based on user-selected quantities
+            // Deduct addon ingredients
             for (const selectedAddon of orderItem.selectedAddons || []) {
-                const addon = menuItem.addons.find(a => a.ingredientId === selectedAddon.ingredientId);
-                if (addon) {
-                    const totalQty = addon.quantityNeeded * selectedAddon.quantity;
-                    await Ingredient.findByIdAndUpdate(selectedAddon.ingredientId, { $inc: { availableQuantity: -totalQty } });
+              const addon = menuItem.addons.find(
+                (a) => a.ingredientId === selectedAddon.ingredientId
+              );
+              if (addon) {
+                const totalQty = addon.quantityNeeded * selectedAddon.quantity;
+
+                const ingredient = await Ingredient.findById(
+                  selectedAddon.ingredientId
+                );
+                if (!ingredient) {
+                  return res
+                    .status(404)
+                    .json({
+                      error: `Addon ingredient ${selectedAddon.ingredientId} not found`,
+                    });
                 }
+
+                // Removed insufficient stock check to allow orders to proceed regardless of addon stock levels
+
+                await Ingredient.findByIdAndUpdate(selectedAddon.ingredientId, {
+                  $inc: { availableQuantity: -totalQty },
+                  $set: { updatedDate: new Date() },
+                });
+              }
             }
         }
 
-        // Save order including generated or provided orderId
+        // Save order
         const order = new Order({
-            orderId,
+            orderId: finalOrderId,
             customerName,
             customerPhone,
             customerAddress,
             orderType,
             orderStatus,
             totalPrice,
-            items
+            items,
+            paymentMethod,
+            bankTransferReference
         });
 
         await order.save();
         res.status(201).json(order);
     } catch (err) {
+        console.error('Order placement error:', err);
         res.status(500).json({ error: err.message });
     }
 };
