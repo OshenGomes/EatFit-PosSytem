@@ -62,13 +62,16 @@ const miRouter = require('./routes/menuItems');
 const ordRouter = require('./routes/orders');
 const paymentRoutes = require('./routes/payments');
 const userRouter = require('./routes/users');
+const uberEatsRouter = require('./routes/uberEats');
 
 app.use('/api/ingredients', ingRouter);
 app.use('/api/menu-items', miRouter);
 app.use('/api/orders', ordRouter);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/users', userRouter);
+app.use('/api/uber-eats', uberEatsRouter);
 
 // Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`🚀 Server running with WebSockets at http://localhost:${PORT}`));
+
