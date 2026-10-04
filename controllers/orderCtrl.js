@@ -1,3 +1,4 @@
+﻿const { emitOrderEvent } = require('../utils/socket');
 const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 const Ingredient = require('../models/Ingredient');
@@ -108,6 +109,10 @@ exports.placeOrder = async (req, res) => {
         });
 
         await order.save();
+        emitOrderEvent('order:new', order);
+        if (order.orderStatus === 'Preparing') {
+            emitOrderEvent('order:preparing', order);
+        }
         res.status(201).json(order);
     } catch (err) {
         console.error('Order placement error:', err);
@@ -140,10 +145,12 @@ exports.updateOrderStatus = async (req, res) => {
     try {
         const updatedOrder = await Order.findByIdAndUpdate(id, { orderStatus }, { new: true });
         if (!updatedOrder) return res.status(404).json({ error: 'Order not found' });
+        emitOrderEvent('order:statusUpdated', updatedOrder);
         res.json(updatedOrder);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
+
 
 
